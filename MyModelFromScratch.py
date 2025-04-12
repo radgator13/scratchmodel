@@ -49,10 +49,6 @@ def scrape_range(start_date, end_date, output_file="mlb_boxscores_cleaned.csv"):
     if os.path.exists(output_file):
         existing_df = pd.read_csv(output_file)
         print(f"📄 Found existing file with {len(existing_df)} rows.")
-        existing_dates = pd.to_datetime(existing_df["Game Date"], errors='coerce')
-        if not existing_dates.empty:
-            start_date = (existing_dates.max() + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-            print(f"⏩ Resuming from: {start_date}")
     else:
         existing_df = pd.DataFrame()
         print("🆕 No previous file found. Starting fresh.")
@@ -76,18 +72,28 @@ def scrape_range(start_date, end_date, output_file="mlb_boxscores_cleaned.csv"):
     if new_rows:
         new_df = pd.DataFrame(new_rows)
 
+        # Remove rows from existing_df that match new scrape (same date + teams)
         if not existing_df.empty:
-            combined = pd.concat([existing_df, new_df], ignore_index=True)
-            combined.drop_duplicates(subset=["Game Date", "Away Team", "Home Team"], inplace=True)
-        else:
-            combined = new_df
+            merge_keys = ["Game Date", "Away Team", "Home Team"]
+            existing_df = existing_df[
+                ~existing_df[merge_keys].apply(tuple, axis=1).isin(
+                    new_df[merge_keys].apply(tuple, axis=1)
+                )
+            ]
 
+        # Combine and sort
+        combined = pd.concat([existing_df, new_df], ignore_index=True)
+        combined.sort_values(by=["Game Date", "Home Team"], inplace=True)
         combined.to_csv(output_file, index=False)
-        print(f"\n✅ Saved updated data to {output_file} (total rows: {len(combined)})")
+        print(f"\n✅ Updated and saved to {output_file} ({len(combined)} total rows)")
     else:
         print("ℹ️ No new games found to append.")
 
 if __name__ == "__main__":
-    print("🚀 Fast ESPN scraper with auto-resume...")
-    scrape_range("2025-03-27", "2025-04-14")
-    input("\nPress Enter to exit...")
+    today = datetime.today()
+    start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+    end_date = today.strftime("%Y-%m-%d")
+    print(f"🚀 Scraping boxscores for: {start_date} to {end_date}")
+    scrape_range(start_date, end_date)
+    
+

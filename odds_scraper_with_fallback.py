@@ -165,4 +165,4 @@ if __name__ == "__main__":
     print("🚀 Starting odds scrape with fallback + model merge")
     scrape_range(START_DATE, END_DATE, update_existing=args.update_existing)
     merge_with_model_results()
-    input("\nPress Enter to exit...")
+    

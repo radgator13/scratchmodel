@@ -1,8 +1,16 @@
-﻿import pandas as pd
+﻿import os
+import pandas as pd
 import numpy as np
 from xgboost import XGBClassifier, XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+import subprocess
+from datetime import datetime, timedelta
+
+# === Auto-refresh today's data ===
+os.system("python MyModelFromScratch.py")
+os.system("python odds_scraper_with_fallback.py")
+os.system("python merge_boxscores_with_odds.py")
 
 # === Load dataset ===
 df_all = pd.read_csv("mlb_model_and_odds.csv")
@@ -12,13 +20,16 @@ for col in ["Home Team", "Away Team"]:
     df_all[col] = df_all[col].str.strip().str.title()
 
 # === Define training cutoff date ===
-cutoff_date = pd.to_datetime("2025-04-01")
+cutoff_date = datetime.today() - timedelta(days=5)
 
-# Train on games BEFORE the cutoff, with final scores
+# Train on games BEFORE the cutoff with complete data
 df_train = df_all[
     (df_all["Game Date"] < cutoff_date) &
     df_all[["Home Score", "Away Score", "Spread Home", "Total"]].notna().all(axis=1)
 ].copy()
+
+if df_train.empty:
+    raise ValueError("No training data found before cutoff date. Adjust your training range.")
 
 # --- Targets ---
 df_train["ATS Winner"] = np.where(
@@ -31,7 +42,8 @@ df_train["Actual Total Runs"] = df_train["Home Score"] + df_train["Away Score"]
 
 # Encode classification target
 lb_ats = LabelEncoder()
-df_train["ATS Code"] = lb_ats.fit_transform(df_train["ATS Winner"])
+lb_ats.fit(["Home", "Away"])
+df_train["ATS Code"] = lb_ats.transform(df_train["ATS Winner"])
 
 # === Features ===
 exclude_cols = [
@@ -48,7 +60,7 @@ X = df_train[features]
 y_cls = df_train["ATS Code"]
 y_reg = df_train["Actual Total Runs"]
 
-clf = XGBClassifier(eval_metric="logloss")
+clf = XGBClassifier(eval_metric="logloss", objective="binary:logistic", base_score=0.5)
 clf.fit(X, y_cls)
 
 reg = XGBRegressor()
@@ -78,4 +90,13 @@ df_all["Total Fireballs"] = df_all["Total Confidence"].apply(fireball_rating)
 
 # Save to output
 df_all.to_csv("mlb_model_predictions.csv", index=False)
-print("✅ Model trained on pre-2025-04-01 games. Predictions written for all games.")
+print("✅ Model trained and predictions written.")
+
+# === Auto-push full repo ===
+try:
+    subprocess.run(["git", "add", "."], check=True)
+    subprocess.run(["git", "commit", "-m", "Auto-push full repo with updated predictions"], check=True)
+    subprocess.run(["git", "push"], check=True)
+    print("✅ Changes pushed to GitHub.")
+except subprocess.CalledProcessError as e:
+    print(f"⚠️ Git push failed: {e}")

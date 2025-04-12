@@ -1,0 +1,12 @@
+.vs/
+*.user
+*.suo
+*.vcxproj.*
+*.pyproj
+*.sln
+__pycache__/
+*.log
+# Ignore all CSVs except this one
+*.csv
+!mlb_model_predictions.csv
+

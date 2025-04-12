@@ -32,7 +32,17 @@ def load_data():
     return df
 
 # Load and process data
+import os
+
+# Auto-generate predictions if missing
+if not os.path.exists("mlb_model_predictions.csv"):
+    st.warning("⏳ Predictions file not found. Running full pipeline...")
+    os.system("python run_pipeline.py")
+    os.system("python make_predictions.py")
+    st.success("✅ Predictions generated!")
+
 df = load_data()
+
 
 # === Sidebar Filters ===
 st.sidebar.header("📅 Filter Games")
