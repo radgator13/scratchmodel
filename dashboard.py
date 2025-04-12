@@ -2,9 +2,13 @@
 import pandas as pd
 from datetime import datetime, timedelta
 
+# === Manual refresh button ===
+if st.button("🔄 Refresh predictions from CSV"):
+    st.cache_data.clear()
+
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_data():
     df = pd.read_csv("mlb_model_predictions.csv")
     df["Game Date"] = pd.to_datetime(df["Game Date"])
@@ -31,18 +35,8 @@ def load_data():
 
     return df
 
-# Load and process data
-import os
-
-# Auto-generate predictions if missing
-if not os.path.exists("mlb_model_predictions.csv"):
-    st.warning("⏳ Predictions file not found. Running full pipeline...")
-    os.system("python run_pipeline.py")
-    os.system("python make_predictions.py")
-    st.success("✅ Predictions generated!")
-
+# Load data
 df = load_data()
-
 
 # === Sidebar Filters ===
 st.sidebar.header("📅 Filter Games")
@@ -88,10 +82,11 @@ st.dataframe(
     use_container_width=True
 )
 
-# === Daily & Grand Summary (only if scores exist) ===
+# === Daily & Grand Summary ===
 def evaluate_results(df):
     df = df.copy()
     df = df.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
+
     df["ATS Result"] = df.apply(
         lambda r: "Home" if (r["Home Score"] + r["Spread Home"]) > r["Away Score"]
         else "Away" if (r["Home Score"] + r["Spread Home"]) < r["Away Score"]
@@ -102,17 +97,20 @@ def evaluate_results(df):
         else "Under" if (r["Home Score"] + r["Away Score"]) < r["Total"]
         else "Push", axis=1
     )
+
     df["ATS Outcome"] = df.apply(
-        lambda r: "Win" if r["Model ATS Pick"] == r["ATS Result"] else "Loss" if r["ATS Result"] != "Push" else "Push", axis=1
+        lambda r: "Win" if r["ATS Result"] == r["Model ATS Pick"]
+        else "Loss" if r["ATS Result"] != "Push" else "Push", axis=1
     )
     df["Total Outcome"] = df.apply(
-        lambda r: "Win" if r["Model Total Pick"] == r["Total Result"] else "Loss" if r["Total Result"] != "Push" else "Push", axis=1
+        lambda r: "Win" if r["Total Result"] == r["Model Total Pick"]
+        else "Loss" if r["Total Result"] != "Push" else "Push", axis=1
     )
+
     return df
 
 summary_df = evaluate_results(df)
 
-# === Cleaner summary layout ===
 def summarize(df_subset, label=""):
     ats = df_subset["ATS Outcome"].value_counts()
     total = df_subset["Total Outcome"].value_counts()
@@ -134,12 +132,11 @@ def summarize(df_subset, label=""):
     st.markdown(render_block(f"{label}ATS Picks", ats))
     st.markdown(render_block(f"{label}Total Picks", total))
 
-# === Show today's summary ===
+# === Show summaries ===
 filtered_summary = summary_df[summary_df["Game Date Normalized"] == selected_date]
 if not filtered_summary.empty:
     st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
     summarize(filtered_summary)
 
-# === Show grand summary ===
 st.subheader("📈 Overall Model Performance")
 summarize(summary_df)
