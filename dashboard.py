@@ -2,11 +2,14 @@
 import pandas as pd
 from datetime import datetime, timedelta
 
+
+
+st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 # === Manual refresh button ===
 if st.button("🔄 Refresh predictions from CSV"):
     st.cache_data.clear()
 
-st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
+
 
 @st.cache_data(ttl=3600)
 def load_data():
