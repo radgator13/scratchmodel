@@ -1,15 +1,14 @@
 ﻿import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import os
 
-
-
+# === Must be first ===
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
+
 # === Manual refresh button ===
 if st.button("🔄 Refresh predictions from CSV"):
     st.cache_data.clear()
-
-
 
 @st.cache_data(ttl=3600)
 def load_data():
@@ -38,8 +37,15 @@ def load_data():
 
     return df
 
-# Load data
+# === Load and filter ===
 df = load_data()
+
+# Show last updated time for prediction file
+file_path = "mlb_model_predictions.csv"
+if os.path.exists(file_path):
+    modified_time = os.path.getmtime(file_path)
+    last_updated = datetime.fromtimestamp(modified_time).strftime("%b %d, %Y at %I:%M %p")
+    st.caption(f"📅 **Predictions last updated:** {last_updated}")
 
 # === Sidebar Filters ===
 st.sidebar.header("📅 Filter Games")
@@ -72,8 +78,6 @@ if selected_team != "All Teams":
 
 # === Display Table ===
 st.title("⚾ MLB Model vs Vegas Picks")
-st.caption("Team names with records, lines, model predictions & confidence 🔥")
-
 display_cols = [
     "Game Date", "Away", "Home", "Score",
     "Vegas Spread", "Model ATS Pick", "ATS Fireballs",
