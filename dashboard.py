@@ -138,13 +138,17 @@ def summarize(df_subset, label=""):
     st.markdown(render_block(f"{label}Total Picks", total))
 
 if not filtered.empty:
+    filtered_summary = evaluate_results(filtered)
+
     col1, col2 = st.columns(2)
     with col1:
         st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
-        summarize(filtered)
+        summarize(filtered_summary)
+
     with col2:
         st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(summary_df)
+
 
 # === Fireball Accuracy Section ===
 def render_fireball_accuracy_section():
