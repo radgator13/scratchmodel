@@ -117,6 +117,8 @@ def evaluate_results(df):
     return df
 
 summary_df = evaluate_results(df)
+summary_df = summary_df[summary_df["Game Date"] >= pd.to_datetime("2025-04-10")]
+
 
 def summarize(df_subset, label=""):
     ats = df_subset["ATS Outcome"].value_counts()
