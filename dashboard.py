@@ -10,6 +10,44 @@ if st.button("🔄 Refresh predictions from CSV"):
     st.cache_data.clear()
 
 @st.cache_data(ttl=3600)
+
+def regenerate_fireball_accuracy():
+    if not os.path.exists("fireball_accuracy_report.xlsx"):
+        try:
+            df = pd.read_csv("mlb_model_predictions.csv")
+            df = df.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
+
+            df["ATS Result"] = df.apply(
+                lambda r: "Home" if (r["Home Score"] + r["Spread Home"]) > r["Away Score"]
+                else "Away" if (r["Home Score"] + r["Spread Home"]) < r["Away Score"]
+                else "Push", axis=1
+            )
+
+            df["Total Result"] = df.apply(
+                lambda r: "Over" if (r["Home Score"] + r["Away Score"]) > r["Total"]
+                else "Under" if (r["Home Score"] + r["Away Score"]) < r["Total"]
+                else "Push", axis=1
+            )
+
+            df = df[(df["ATS Result"] != "Push") & (df["Total Result"] != "Push")]
+            df["ATS Outcome"] = df.apply(lambda r: "Win" if r["Model ATS Pick"] == r["ATS Result"] else "Loss", axis=1)
+            df["Total Outcome"] = df.apply(lambda r: "Win" if r["Model Total Pick"] == r["Total Result"] else "Loss", axis=1)
+
+            def fireball_stats(label_col, outcome_col):
+                grouped = df.groupby(label_col)[outcome_col].value_counts().unstack().fillna(0)
+                grouped["Total"] = grouped.sum(axis=1)
+                grouped["Accuracy"] = (grouped.get("Win", 0) / grouped["Total"] * 100).round(1)
+                return grouped.sort_index(ascending=False)
+
+            ats_stats = fireball_stats("ATS Fireballs", "ATS Outcome")
+            total_stats = fireball_stats("Total Fireballs", "Total Outcome")
+
+            with pd.ExcelWriter("fireball_accuracy_report.xlsx") as writer:
+                ats_stats.to_excel(writer, sheet_name="ATS Accuracy")
+                total_stats.to_excel(writer, sheet_name="Total Accuracy")
+            print("✅ Generated fireball_accuracy_report.xlsx in dashboard")
+        except Exception as e:
+            print(f"⚠️ Failed to generate fireball report: {e}")
 def load_data():
     df = pd.read_csv("mlb_model_predictions.csv")
     df["Game Date"] = pd.to_datetime(df["Game Date"])
@@ -38,6 +76,7 @@ def load_data():
 
 # === Load data ===
 df = load_data()
+regenerate_fireball_accuracy()
 
 # Show last updated time
 file_path = "mlb_model_predictions.csv"
