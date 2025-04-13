@@ -9,8 +9,7 @@ st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 if st.button("🔄 Refresh predictions from CSV"):
     st.cache_data.clear()
 
-@st.cache_data(ttl=3600)
-
+# === Rebuild fireball accuracy report if needed ===
 def regenerate_fireball_accuracy():
     if not os.path.exists("fireball_accuracy_report.xlsx"):
         try:
@@ -45,9 +44,13 @@ def regenerate_fireball_accuracy():
             with pd.ExcelWriter("fireball_accuracy_report.xlsx") as writer:
                 ats_stats.to_excel(writer, sheet_name="ATS Accuracy")
                 total_stats.to_excel(writer, sheet_name="Total Accuracy")
-            print("✅ Generated fireball_accuracy_report.xlsx in dashboard")
+
+            print("✅ Regenerated fireball_accuracy_report.xlsx")
         except Exception as e:
-            print(f"⚠️ Failed to generate fireball report: {e}")
+            print(f"⚠️ Failed to regenerate fireball report: {e}")
+
+# === Load main predictions CSV ===
+@st.cache_data(ttl=3600)
 def load_data():
     df = pd.read_csv("mlb_model_predictions.csv")
     df["Game Date"] = pd.to_datetime(df["Game Date"])
@@ -71,67 +74,53 @@ def load_data():
 
     df["Vegas Spread"] = df["Spread Home"]
     df["Vegas Total"] = df["Total"]
-
     return df
 
-# === Load data ===
 df = load_data()
 regenerate_fireball_accuracy()
 
-# Show last updated time
-file_path = "mlb_model_predictions.csv"
-if os.path.exists(file_path):
-    modified_time = os.path.getmtime(file_path)
-    last_updated = datetime.fromtimestamp(modified_time).strftime("%b %d, %Y at %I:%M %p")
-    st.caption(f"📅 **Predictions last updated:** {last_updated}")
+# === Timestamp
+if os.path.exists("mlb_model_predictions.csv"):
+    modified_time = os.path.getmtime("mlb_model_predictions.csv")
+    st.caption(f"📅 **Predictions last updated:** {datetime.fromtimestamp(modified_time).strftime('%b %d, %Y at %I:%M %p')}")
 
-# === Sidebar filters ===
+# === Sidebar filters
 st.sidebar.header("📅 Filter Games")
-
 today = pd.Timestamp.today().normalize()
 min_date = df["Game Date"].min().date()
 max_data_date = df["Game Date"].max().date()
 max_display_date = max((today + timedelta(days=2)).date(), max_data_date)
 
 selected_date = st.sidebar.date_input(
-    "Select Game Date",
-    value=today.date(),
-    min_value=min_date,
-    max_value=max_display_date
+    "Select Game Date", value=today.date(),
+    min_value=min_date, max_value=max_display_date
 )
-
 selected_date = pd.to_datetime(selected_date).date()
 df["Game Date Normalized"] = df["Game Date"].dt.date
 filtered = df[df["Game Date Normalized"] == selected_date]
 
+# === Team filter
 team_options = sorted(set(df["Home Team"]).union(df["Away Team"]))
 selected_team = st.sidebar.selectbox("Filter by team (optional)", options=["All Teams"] + team_options)
-
 if selected_team != "All Teams":
     filtered = filtered[
         (filtered["Home Team"] == selected_team) |
         (filtered["Away Team"] == selected_team)
     ]
 
-# === Display main table ===
+# === Main table
 st.title("⚾ MLB Model vs Vegas Picks")
-
 display_cols = [
     "Game Date", "Away", "Home", "Score",
     "Vegas Spread", "Model ATS Pick", "ATS Fireballs",
     "Vegas Total", "Model Total Pick", "Total Fireballs"
 ]
+st.dataframe(filtered[display_cols].sort_values(["Game Date", "Home"]), use_container_width=True)
 
-st.dataframe(
-    filtered[display_cols].sort_values(["Game Date", "Home"]),
-    use_container_width=True
-)
-
-# === Daily & overall summaries ===
+# === Evaluate results for summaries
 def evaluate_results(df):
     df = df.copy()
     df = df.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
-
     df["ATS Result"] = df.apply(
         lambda r: "Home" if (r["Home Score"] + r["Spread Home"]) > r["Away Score"]
         else "Away" if (r["Home Score"] + r["Spread Home"]) < r["Away Score"]
@@ -172,24 +161,21 @@ def summarize(df_subset, label=""):
 - ⚪ Pushes: {p}
 - 🧮 Win Rate: **{pct:.1f}%**
 """
-
     st.markdown(render_block(f"{label}ATS Picks", ats))
     st.markdown(render_block(f"{label}Total Picks", total))
 
+# === Show daily & overall side by side
 if not filtered.empty:
     filtered_summary = evaluate_results(filtered)
-
     col1, col2 = st.columns(2)
     with col1:
         st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
         summarize(filtered_summary)
-
     with col2:
         st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(summary_df)
 
-
-# === Fireball Accuracy Section ===
+# === Fireball accuracy viewer
 def render_fireball_accuracy_section():
     try:
         xls = pd.ExcelFile("fireball_accuracy_report.xlsx")
@@ -198,20 +184,17 @@ def render_fireball_accuracy_section():
 
         with st.expander("🔥 Fireball Accuracy Summary"):
             col1, col2 = st.columns(2)
-
             with col1:
                 st.markdown("**ATS Accuracy by Fireball 🔥**")
                 for label, row in ats_stats.iterrows():
                     acc = row.get("Accuracy", 0)
                     st.markdown(f"- `{label}` → **{acc:.1f}%**")
-
             with col2:
                 st.markdown("**Total Accuracy by Fireball 🔥**")
                 for label, row in total_stats.iterrows():
                     acc = row.get("Accuracy", 0)
                     st.markdown(f"- `{label}` → **{acc:.1f}%**")
-
-    except:
+    except Exception as e:
         st.warning("⚠️ Fireball accuracy report not found or unreadable.")
 
 render_fireball_accuracy_section()
