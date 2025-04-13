@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 
-# === Must be first ===
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 
 # === Manual refresh button ===
@@ -37,17 +36,17 @@ def load_data():
 
     return df
 
-# === Load and filter ===
+# === Load data ===
 df = load_data()
 
-# Show last updated time for prediction file
+# Show last updated time
 file_path = "mlb_model_predictions.csv"
 if os.path.exists(file_path):
     modified_time = os.path.getmtime(file_path)
     last_updated = datetime.fromtimestamp(modified_time).strftime("%b %d, %Y at %I:%M %p")
     st.caption(f"📅 **Predictions last updated:** {last_updated}")
 
-# === Sidebar Filters ===
+# === Sidebar filters ===
 st.sidebar.header("📅 Filter Games")
 
 today = pd.Timestamp.today().normalize()
@@ -66,7 +65,6 @@ selected_date = pd.to_datetime(selected_date).date()
 df["Game Date Normalized"] = df["Game Date"].dt.date
 filtered = df[df["Game Date Normalized"] == selected_date]
 
-# === Team filter ===
 team_options = sorted(set(df["Home Team"]).union(df["Away Team"]))
 selected_team = st.sidebar.selectbox("Filter by team (optional)", options=["All Teams"] + team_options)
 
@@ -76,8 +74,9 @@ if selected_team != "All Teams":
         (filtered["Away Team"] == selected_team)
     ]
 
-# === Display Table ===
+# === Display main table ===
 st.title("⚾ MLB Model vs Vegas Picks")
+
 display_cols = [
     "Game Date", "Away", "Home", "Score",
     "Vegas Spread", "Model ATS Pick", "ATS Fireballs",
@@ -89,7 +88,7 @@ st.dataframe(
     use_container_width=True
 )
 
-# === Daily & Grand Summary ===
+# === Daily & overall summaries ===
 def evaluate_results(df):
     df = df.copy()
     df = df.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
@@ -104,7 +103,6 @@ def evaluate_results(df):
         else "Under" if (r["Home Score"] + r["Away Score"]) < r["Total"]
         else "Push", axis=1
     )
-
     df["ATS Outcome"] = df.apply(
         lambda r: "Win" if r["ATS Result"] == r["Model ATS Pick"]
         else "Loss" if r["ATS Result"] != "Push" else "Push", axis=1
@@ -113,12 +111,10 @@ def evaluate_results(df):
         lambda r: "Win" if r["Total Result"] == r["Model Total Pick"]
         else "Loss" if r["Total Result"] != "Push" else "Push", axis=1
     )
-
     return df
 
 summary_df = evaluate_results(df)
 summary_df = summary_df[summary_df["Game Date"] >= pd.to_datetime("2025-04-10")]
-
 
 def summarize(df_subset, label=""):
     ats = df_subset["ATS Outcome"].value_counts()
@@ -141,16 +137,38 @@ def summarize(df_subset, label=""):
     st.markdown(render_block(f"{label}ATS Picks", ats))
     st.markdown(render_block(f"{label}Total Picks", total))
 
-# === Show summaries ===
-filtered_summary = summary_df[summary_df["Game Date Normalized"] == selected_date]
-if not filtered_summary.empty:
+if not filtered.empty:
     col1, col2 = st.columns(2)
-
     with col1:
         st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
-        summarize(filtered_summary)
-
+        summarize(filtered)
     with col2:
-        st.subheader("📈 Overall Model Performance")
+        st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(summary_df)
 
+# === Fireball Accuracy Section ===
+def render_fireball_accuracy_section():
+    try:
+        xls = pd.ExcelFile("fireball_accuracy_report.xlsx")
+        ats_stats = pd.read_excel(xls, sheet_name="ATS Accuracy", index_col=0)
+        total_stats = pd.read_excel(xls, sheet_name="Total Accuracy", index_col=0)
+
+        with st.expander("🔥 Fireball Accuracy Summary"):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**ATS Accuracy by Fireball 🔥**")
+                for label, row in ats_stats.iterrows():
+                    acc = row.get("Accuracy", 0)
+                    st.markdown(f"- `{label}` → **{acc:.1f}%**")
+
+            with col2:
+                st.markdown("**Total Accuracy by Fireball 🔥**")
+                for label, row in total_stats.iterrows():
+                    acc = row.get("Accuracy", 0)
+                    st.markdown(f"- `{label}` → **{acc:.1f}%**")
+
+    except:
+        st.warning("⚠️ Fireball accuracy report not found or unreadable.")
+
+render_fireball_accuracy_section()

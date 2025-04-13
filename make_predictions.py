@@ -98,10 +98,45 @@ df_all.to_csv("mlb_model_predictions.csv", index=False)
 now = datetime.now().strftime("%Y-%m-%d %I:%M %p")
 print(f"✅ Model trained and predictions written at {now}.")
 
+# === Generate fireball accuracy report ===
+df_eval = df_all.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
+
+df_eval["ATS Result"] = df_eval.apply(
+    lambda r: "Home" if (r["Home Score"] + r["Spread Home"]) > r["Away Score"]
+    else "Away" if (r["Home Score"] + r["Spread Home"]) < r["Away Score"]
+    else "Push", axis=1
+)
+
+df_eval["Total Result"] = df_eval.apply(
+    lambda r: "Over" if (r["Home Score"] + r["Away Score"]) > r["Total"]
+    else "Under" if (r["Home Score"] + r["Away Score"]) < r["Total"]
+    else "Push", axis=1
+)
+
+df_eval = df_eval[(df_eval["ATS Result"] != "Push") & (df_eval["Total Result"] != "Push")]
+
+df_eval["ATS Outcome"] = df_eval.apply(lambda r: "Win" if r["Model ATS Pick"] == r["ATS Result"] else "Loss", axis=1)
+df_eval["Total Outcome"] = df_eval.apply(lambda r: "Win" if r["Model Total Pick"] == r["Total Result"] else "Loss", axis=1)
+
+def fireball_stats(label_col, outcome_col):
+    grouped = df_eval.groupby(label_col)[outcome_col].value_counts().unstack().fillna(0)
+    grouped["Total"] = grouped.sum(axis=1)
+    grouped["Accuracy"] = (grouped.get("Win", 0) / grouped["Total"] * 100).round(1)
+    return grouped.sort_index(ascending=False)
+
+ats_stats = fireball_stats("ATS Fireballs", "ATS Outcome")
+total_stats = fireball_stats("Total Fireballs", "Total Outcome")
+
+with pd.ExcelWriter("fireball_accuracy_report.xlsx") as writer:
+    ats_stats.to_excel(writer, sheet_name="ATS Accuracy")
+    total_stats.to_excel(writer, sheet_name="Total Accuracy")
+
+print("✅ Fireball accuracy report saved to fireball_accuracy_report.xlsx")
+
 # === Push to GitHub ===
 try:
     subprocess.run(["git", "add", "."], check=True)
-    subprocess.run(["git", "commit", "-m", f"Auto-push with total model classification [{now}]"], check=True)
+    subprocess.run(["git", "commit", "-m", f"Auto-push with fireball accuracy report [{now}]"], check=True)
     subprocess.run(["git", "push"], check=True)
     print("✅ Changes pushed to GitHub.")
 except subprocess.CalledProcessError as e:
