@@ -1,0 +1,15 @@
+streamlit
+pandas
+xgboost
+scikit-learn
+requests
+beautifulsoup4
+openpyxl
+
+pandas==2.2.3
+numpy==2.2.4
+xgboost==3.0.0
+scikit-learn==1.6.1
+openpyxl==3.1.2
+requests==2.32.3
+
