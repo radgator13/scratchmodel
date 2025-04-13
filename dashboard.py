@@ -94,25 +94,25 @@ def render_fireball_accuracy_summary(df_eval, label=""):
             st.markdown("**ATS Accuracy by Fireball 🔥**")
             for label, row in ats_stats.iterrows():
                 st.markdown(f"- `{label}` → **{row['Accuracy']:.1f}%**")
-            st.bar_chart(ats_stats["Accuracy"])
-            st.caption("🔢 Pick counts:")
+            if "Accuracy" in ats_stats.columns:
+                st.bar_chart(ats_stats["Accuracy"])
             if all(col in ats_stats.columns for col in ["Win", "Loss", "Total"]):
+                st.caption("🔢 Pick counts:")
                 st.dataframe(ats_stats[["Win", "Loss", "Total"]])
             else:
                 st.info("No ATS picks available to show counts for this date.")
-
 
         with col2:
             st.markdown("**Total Accuracy by Fireball 🔥**")
             for label, row in total_stats.iterrows():
                 st.markdown(f"- `{label}` → **{row['Accuracy']:.1f}%**")
-            st.bar_chart(total_stats["Accuracy"])
-            st.caption("🔢 Pick counts:")
+            if "Accuracy" in total_stats.columns:
+                st.bar_chart(total_stats["Accuracy"])
             if all(col in total_stats.columns for col in ["Win", "Loss", "Total"]):
+                st.caption("🔢 Pick counts:")
                 st.dataframe(total_stats[["Win", "Loss", "Total"]])
             else:
                 st.info("No Total picks available to show counts for this date.")
-
 
 # === Load and preprocess
 df = load_data()
@@ -150,7 +150,35 @@ display_cols = [
 ]
 st.dataframe(filtered[display_cols].sort_values(["Game Date", "Home"]), use_container_width=True)
 
-# === Summary + Fireball Report
+# === Top Picks
+st.subheader(f"🔝 Top 10 Model Picks for {selected_date.strftime('%B %d, %Y')}")
+
+top_filtered = filtered.copy()
+ats_picks = top_filtered[["Game Date", "Away", "Home", "Model ATS Pick", "ATS Confidence", "ATS Fireballs"]].copy()
+ats_picks.columns = ["Game Date", "Away", "Home", "Pick", "Confidence", "Fireballs"]
+ats_picks["Type"] = "ATS"
+
+total_picks = top_filtered[["Game Date", "Away", "Home", "Model Total Pick", "Total Confidence", "Total Fireballs"]].copy()
+total_picks.columns = ["Game Date", "Away", "Home", "Pick", "Confidence", "Fireballs"]
+total_picks["Type"] = "Total"
+
+top_picks = pd.concat([ats_picks, total_picks], ignore_index=True)
+
+pick_filter = st.radio("Show picks by type:", ["All", "ATS Only", "Total Only"], horizontal=True)
+if pick_filter == "ATS Only":
+    top_picks = top_picks[top_picks["Type"] == "ATS"]
+elif pick_filter == "Total Only":
+    top_picks = top_picks[top_picks["Type"] == "Total"]
+
+top_picks = top_picks[top_picks["Confidence"] >= 0.75]
+top_picks = top_picks.sort_values("Confidence", ascending=False).head(10)
+
+st.dataframe(
+    top_picks[["Type", "Away", "Home", "Pick", "Confidence", "Fireballs"]].reset_index(drop=True),
+    use_container_width=True
+)
+
+# === Summary + Fireball Reporting
 if not filtered.empty:
     df_results = evaluate_results(df)
     filtered_summary = df_results[df_results["Game Date Normalized"] == selected_date]
