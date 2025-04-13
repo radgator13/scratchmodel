@@ -88,9 +88,13 @@ def fireball_rating(conf):
 df_all["ATS Fireballs"] = df_all["ATS Confidence"].apply(fireball_rating)
 df_all["Total Fireballs"] = df_all["Total Confidence"].apply(fireball_rating)
 
+
 # Save to output
 df_all.to_csv("mlb_model_predictions.csv", index=False)
-print("✅ Model trained and predictions written.")
+
+# Timestamp confirmation
+now = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+print(f"✅ Model trained and predictions written at {now}.")
 
 # === Auto-push full repo ===
 try:
