@@ -9,4 +9,5 @@ __pycache__/
 # Ignore all CSVs except this one
 *.csv
 !mlb_model_predictions.csv
+!fireball_accuracy_report.xlsx
 
