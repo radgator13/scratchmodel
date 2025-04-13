@@ -9,7 +9,7 @@ st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 if st.button("🔄 Refresh predictions from CSV"):
     st.cache_data.clear()
 
-# === Rebuild fireball accuracy report if needed ===
+# === Regenerate fireball report if missing ===
 def regenerate_fireball_accuracy():
     if not os.path.exists("fireball_accuracy_report.xlsx"):
         try:
@@ -46,10 +46,11 @@ def regenerate_fireball_accuracy():
                 total_stats.to_excel(writer, sheet_name="Total Accuracy")
 
             print("✅ Regenerated fireball_accuracy_report.xlsx")
+            print("📂 Found:", os.path.exists("fireball_accuracy_report.xlsx"))
         except Exception as e:
             print(f"⚠️ Failed to regenerate fireball report: {e}")
 
-# === Load main predictions CSV ===
+# === Load model predictions ===
 @st.cache_data(ttl=3600)
 def load_data():
     df = pd.read_csv("mlb_model_predictions.csv")
@@ -79,12 +80,18 @@ def load_data():
 df = load_data()
 regenerate_fireball_accuracy()
 
-# === Timestamp
+# === Confirm report exists visually
+if os.path.exists("fireball_accuracy_report.xlsx"):
+    st.success("✅ Fireball accuracy report is ready.")
+else:
+    st.error("❌ Fireball accuracy report not found.")
+
+# === Last updated timestamp
 if os.path.exists("mlb_model_predictions.csv"):
     modified_time = os.path.getmtime("mlb_model_predictions.csv")
     st.caption(f"📅 **Predictions last updated:** {datetime.fromtimestamp(modified_time).strftime('%b %d, %Y at %I:%M %p')}")
 
-# === Sidebar filters
+# === Sidebar Filters
 st.sidebar.header("📅 Filter Games")
 today = pd.Timestamp.today().normalize()
 min_date = df["Game Date"].min().date()
@@ -99,7 +106,6 @@ selected_date = pd.to_datetime(selected_date).date()
 df["Game Date Normalized"] = df["Game Date"].dt.date
 filtered = df[df["Game Date Normalized"] == selected_date]
 
-# === Team filter
 team_options = sorted(set(df["Home Team"]).union(df["Away Team"]))
 selected_team = st.sidebar.selectbox("Filter by team (optional)", options=["All Teams"] + team_options)
 if selected_team != "All Teams":
@@ -108,7 +114,7 @@ if selected_team != "All Teams":
         (filtered["Away Team"] == selected_team)
     ]
 
-# === Main table
+# === Display Main Table
 st.title("⚾ MLB Model vs Vegas Picks")
 display_cols = [
     "Game Date", "Away", "Home", "Score",
@@ -117,7 +123,7 @@ display_cols = [
 ]
 st.dataframe(filtered[display_cols].sort_values(["Game Date", "Home"]), use_container_width=True)
 
-# === Evaluate results for summaries
+# === Results evaluation
 def evaluate_results(df):
     df = df.copy()
     df = df.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
@@ -164,7 +170,6 @@ def summarize(df_subset, label=""):
     st.markdown(render_block(f"{label}ATS Picks", ats))
     st.markdown(render_block(f"{label}Total Picks", total))
 
-# === Show daily & overall side by side
 if not filtered.empty:
     filtered_summary = evaluate_results(filtered)
     col1, col2 = st.columns(2)
