@@ -1,0 +1,39 @@
+﻿# === MLB Model Snapshot ===
+
+Model Name: mlb_model_from_scratch
+Version: 1.0
+Date: 2025-04-12
+
+--- Model Type ---
+- XGBoost Classifier (ATS)
+- XGBoost Classifier (Total)
+
+--- Targets ---
+- ATS: "Home" vs "Away"
+- Total: "Over" vs "Under"
+
+--- Confidence Scoring ---
+- Classifier .predict_proba().max(axis=1)
+- Fireball Confidence Scale:
+    🔥 < 60%
+    🔥🔥 60–74%
+    🔥🔥🔥 75–84%
+    🔥🔥🔥🔥 85–94%
+    🔥🔥🔥🔥🔥 ≥ 95%
+
+--- Features Used ---
+- All numeric columns from `mlb_model_and_odds.csv` excluding:
+  ['Game Date', 'Home Team', 'Away Team', 'ATS Winner', 'ATS Code', 
+   'Total Result', 'Total Code', 'Bookmaker Used', 'Model ATS Pick',
+   'ATS Confidence', 'Model Total Pick', 'Total Confidence',
+   'ATS Fireballs', 'Total Fireballs', 'Home Score', 'Away Score']
+
+--- Training Cutoff ---
+- Training data excludes games played within the last 5 days
+
+--- Prediction Output ---
+- Saved to: mlb_model_predictions.csv
+- Fireball accuracy stats: fireball_accuracy_report.xlsx
+
+--- Dependencies ---
+See requirements.txt
