@@ -5,7 +5,6 @@ import os
 
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 
-# === Manual refresh button ===
 if st.button("🔄 Refresh predictions from CSV"):
     st.cache_data.clear()
 
@@ -35,7 +34,6 @@ def load_data():
     df["Vegas Total"] = df["Total"]
     return df
 
-# === Recalculate ATS & Total outcomes
 def evaluate_results(df):
     df = df.copy()
     df = df.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
@@ -57,7 +55,6 @@ def evaluate_results(df):
     )
     return df
 
-# === Summarize W/L
 def summarize(df_subset, label=""):
     ats = df_subset["ATS Outcome"].value_counts()
     total = df_subset["Total Outcome"].value_counts()
@@ -78,7 +75,6 @@ def summarize(df_subset, label=""):
     st.markdown(render_block(f"{label}ATS Picks", ats))
     st.markdown(render_block(f"{label}Total Picks", total))
 
-# === Fireball accuracy breakdown
 def render_fireball_accuracy_summary(df_eval, label=""):
     df_eval = df_eval[(df_eval["ATS Outcome"] != "Push") & (df_eval["Total Outcome"] != "Push")]
 
@@ -98,17 +94,18 @@ def render_fireball_accuracy_summary(df_eval, label=""):
             for label, row in ats_stats.iterrows():
                 acc = row.get("Accuracy", 0)
                 st.markdown(f"- `{label}` → **{acc:.1f}%**")
+            st.bar_chart(ats_stats["Accuracy"])
         with col2:
             st.markdown("**Total Accuracy by Fireball 🔥**")
             for label, row in total_stats.iterrows():
                 acc = row.get("Accuracy", 0)
                 st.markdown(f"- `{label}` → **{acc:.1f}%**")
+            st.bar_chart(total_stats["Accuracy"])
 
-# === Load and preprocess
+# === Load + filter
 df = load_data()
 df["Game Date Normalized"] = df["Game Date"].dt.date
 
-# === Sidebar filters
 st.sidebar.header("📅 Filter Games")
 today = pd.Timestamp.today().normalize()
 min_date = df["Game Date"].min().date()
@@ -132,7 +129,7 @@ if os.path.exists("mlb_model_predictions.csv"):
     modified_time = os.path.getmtime("mlb_model_predictions.csv")
     st.caption(f"📅 **Predictions last updated:** {datetime.fromtimestamp(modified_time).strftime('%b %d, %Y at %I:%M %p')}")
 
-# === Display table
+# === Display main table
 st.title("⚾ MLB Model vs Vegas Picks")
 display_cols = [
     "Game Date", "Away", "Home", "Score",
@@ -155,7 +152,7 @@ if not filtered.empty:
         st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(overall_summary)
 
-    # === Fireball summary toggle
+    # === Toggle view for fireball accuracy
     st.subheader("🔥 Fireball Accuracy Reporting")
     fireball_scope = st.radio("Choose fireball report scope:", ["Selected Date", "Overall"], horizontal=True)
 
