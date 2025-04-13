@@ -75,34 +75,38 @@ def summarize(df_subset, label=""):
     st.markdown(render_block(f"{label}ATS Picks", ats))
     st.markdown(render_block(f"{label}Total Picks", total))
 
+def fireball_stats(df_eval, label_col, outcome_col):
+    grouped = df_eval.groupby(label_col)[outcome_col].value_counts().unstack().fillna(0)
+    grouped["Total"] = grouped.sum(axis=1)
+    grouped["Accuracy"] = (grouped.get("Win", 0) / grouped["Total"] * 100).round(1)
+    return grouped.sort_index(ascending=False)
+
 def render_fireball_accuracy_summary(df_eval, label=""):
     df_eval = df_eval[(df_eval["ATS Outcome"] != "Push") & (df_eval["Total Outcome"] != "Push")]
 
-    def fireball_stats(label_col, outcome_col):
-        grouped = df_eval.groupby(label_col)[outcome_col].value_counts().unstack().fillna(0)
-        grouped["Total"] = grouped.sum(axis=1)
-        grouped["Accuracy"] = (grouped.get("Win", 0) / grouped["Total"] * 100).round(1)
-        return grouped.sort_index(ascending=False)
-
-    ats_stats = fireball_stats("ATS Fireballs", "ATS Outcome")
-    total_stats = fireball_stats("Total Fireballs", "Total Outcome")
+    ats_stats = fireball_stats(df_eval, "ATS Fireballs", "ATS Outcome")
+    total_stats = fireball_stats(df_eval, "Total Fireballs", "Total Outcome")
 
     with st.expander(f"🔥 Fireball Accuracy Summary ({label})"):
         col1, col2 = st.columns(2)
+
         with col1:
             st.markdown("**ATS Accuracy by Fireball 🔥**")
             for label, row in ats_stats.iterrows():
-                acc = row.get("Accuracy", 0)
-                st.markdown(f"- `{label}` → **{acc:.1f}%**")
+                st.markdown(f"- `{label}` → **{row['Accuracy']:.1f}%**")
             st.bar_chart(ats_stats["Accuracy"])
+            st.caption("🔢 Pick counts:")
+            st.dataframe(ats_stats[["Win", "Loss", "Total"]])
+
         with col2:
             st.markdown("**Total Accuracy by Fireball 🔥**")
             for label, row in total_stats.iterrows():
-                acc = row.get("Accuracy", 0)
-                st.markdown(f"- `{label}` → **{acc:.1f}%**")
+                st.markdown(f"- `{label}` → **{row['Accuracy']:.1f}%**")
             st.bar_chart(total_stats["Accuracy"])
+            st.caption("🔢 Pick counts:")
+            st.dataframe(total_stats[["Win", "Loss", "Total"]])
 
-# === Load + filter
+# === Load and preprocess
 df = load_data()
 df["Game Date Normalized"] = df["Game Date"].dt.date
 
@@ -129,7 +133,7 @@ if os.path.exists("mlb_model_predictions.csv"):
     modified_time = os.path.getmtime("mlb_model_predictions.csv")
     st.caption(f"📅 **Predictions last updated:** {datetime.fromtimestamp(modified_time).strftime('%b %d, %Y at %I:%M %p')}")
 
-# === Display main table
+# === Display table
 st.title("⚾ MLB Model vs Vegas Picks")
 display_cols = [
     "Game Date", "Away", "Home", "Score",
@@ -138,7 +142,7 @@ display_cols = [
 ]
 st.dataframe(filtered[display_cols].sort_values(["Game Date", "Home"]), use_container_width=True)
 
-# === Summaries
+# === Summary + Fireball Report
 if not filtered.empty:
     df_results = evaluate_results(df)
     filtered_summary = df_results[df_results["Game Date Normalized"] == selected_date]
@@ -152,11 +156,10 @@ if not filtered.empty:
         st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(overall_summary)
 
-    # === Toggle view for fireball accuracy
     st.subheader("🔥 Fireball Accuracy Reporting")
-    fireball_scope = st.radio("Choose fireball report scope:", ["Selected Date", "Overall"], horizontal=True)
+    scope = st.radio("Choose fireball report scope:", ["Selected Date", "Overall"], horizontal=True)
 
-    if fireball_scope == "Selected Date":
+    if scope == "Selected Date":
         render_fireball_accuracy_summary(filtered_summary, label=selected_date.strftime("%b %d"))
     else:
         render_fireball_accuracy_summary(overall_summary, label="Since Apr 10")
