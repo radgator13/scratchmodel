@@ -144,8 +144,13 @@ def summarize(df_subset, label=""):
 # === Show summaries ===
 filtered_summary = summary_df[summary_df["Game Date Normalized"] == selected_date]
 if not filtered_summary.empty:
-    st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
-    summarize(filtered_summary)
+    col1, col2 = st.columns(2)
 
-st.subheader("📈 Overall Model Performance")
-summarize(summary_df)
+    with col1:
+        st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
+        summarize(filtered_summary)
+
+    with col2:
+        st.subheader("📈 Overall Model Performance")
+        summarize(summary_df)
+
