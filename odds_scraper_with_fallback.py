@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import time
 import os
 import argparse
+import sys
 
 API_KEY = "591b5b68a9802e9b588155794300ed47"
 SPORT_KEY = "baseball_mlb"
@@ -114,14 +115,16 @@ def scrape_range(start_date, end_date, update_existing=False):
             print(f"⏭ Skipping {date_str} (already exists)")
         else:
             new_rows = fetch_odds_for_day(current)
-            all_rows.extend(new_rows)
+            if new_rows:
+                all_rows.extend(new_rows)
+            else:
+                print(f"⚠️ No odds scraped for {date_str}")
             time.sleep(1.25)
 
         current += timedelta(days=1)
 
     if all_rows:
         new_df = pd.DataFrame(all_rows)
-
         if not existing_df.empty:
             combined = pd.concat([existing_df, new_df], ignore_index=True)
             combined.drop_duplicates(subset=["Game Date", "Home Team", "Away Team"], keep="last", inplace=True)
@@ -131,7 +134,8 @@ def scrape_range(start_date, end_date, update_existing=False):
         combined.to_csv(OUTPUT_CSV, index=False)
         print(f"\n✅ Updated odds saved to {OUTPUT_CSV} ({len(combined)} total rows)")
     else:
-        print("✅ No new odds scraped, but file is ready.")
+        print("❌ No new odds scraped. Exiting.")
+        sys.exit(1)
 
 def merge_with_model_results():
     model_file = "mlb_boxscores_cleaned.csv"
@@ -142,19 +146,27 @@ def merge_with_model_results():
 
     if not os.path.exists(model_file) or not os.path.exists(odds_file):
         print("⚠️ One or both input files are missing.")
-        return
+        sys.exit(1)
 
-    model = pd.read_csv(model_file)
-    odds = pd.read_csv(odds_file)
+    try:
+        model = pd.read_csv(model_file)
+        odds = pd.read_csv(odds_file)
+    except Exception as e:
+        print(f"❌ Failed to read input files: {e}")
+        sys.exit(1)
 
     for df in [model, odds]:
         df["Game Date"] = pd.to_datetime(df["Game Date"], errors='coerce').dt.strftime("%Y-%m-%d")
         df["Home Team"] = df["Home Team"].str.strip().str.title()
         df["Away Team"] = df["Away Team"].str.strip().str.title()
 
-    merged = pd.merge(model, odds, on=["Game Date", "Home Team", "Away Team"], how="left")
-    merged.to_csv(output_file, index=False)
-    print(f"✅ Merged file saved as {output_file} ({len(merged)} rows)")
+    try:
+        merged = pd.merge(model, odds, on=["Game Date", "Home Team", "Away Team"], how="left")
+        merged.to_csv(output_file, index=False)
+        print(f"✅ Merged file saved as {output_file} ({len(merged)} rows)")
+    except Exception as e:
+        print(f"❌ Merge failed: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

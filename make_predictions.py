@@ -11,7 +11,11 @@ os.system("python MyModelFromScratch.py")
 os.system("python odds_scraper_with_fallback.py")
 os.system("python merge_boxscores_with_odds.py")
 
-# === Load dataset ===
+# === Safe-guarded file load ===
+if not os.path.exists("mlb_model_and_odds.csv"):
+    print("❌ Required file mlb_model_and_odds.csv not found.")
+    exit(1)
+
 df_all = pd.read_csv("mlb_model_and_odds.csv")
 df_all["Game Date"] = pd.to_datetime(df_all["Game Date"])
 
@@ -20,14 +24,14 @@ for col in ["Home Team", "Away Team"]:
 
 # === Define training cutoff ===
 cutoff_date = datetime.today() - timedelta(days=5)
-
 df_train = df_all[
     (df_all["Game Date"] < cutoff_date) &
     df_all[["Home Score", "Away Score", "Spread Home", "Total"]].notna().all(axis=1)
 ].copy()
 
 if df_train.empty:
-    raise ValueError("No training data found before cutoff date.")
+    print("❌ No training data found before cutoff date.")
+    exit(1)
 
 # === Classification targets ===
 df_train["ATS Winner"] = np.where(
@@ -51,7 +55,7 @@ lb_total = LabelEncoder()
 lb_total.fit(["Over", "Under"])
 df_train["Total Code"] = lb_total.transform(df_train["Total Result"])
 
-# === Features ===
+# === Feature selection ===
 exclude_cols = [
     "Game Date", "Home Team", "Away Team", "Bookmaker Used",
     "ATS Winner", "ATS Code", "Total Result", "Total Code",
@@ -93,12 +97,12 @@ def fireball_rating(conf):
 df_all["ATS Fireballs"] = df_all["ATS Confidence"].apply(fireball_rating)
 df_all["Total Fireballs"] = df_all["Total Confidence"].apply(fireball_rating)
 
-# === Save to CSV ===
+# === Save predictions ===
 df_all.to_csv("mlb_model_predictions.csv", index=False)
 now = datetime.now().strftime("%Y-%m-%d %I:%M %p")
 print(f"✅ Model trained and predictions written at {now}.")
 
-# === Generate fireball accuracy report ===
+# === Fireball accuracy summary ===
 df_eval = df_all.dropna(subset=["Home Score", "Away Score", "Spread Home", "Total"])
 
 df_eval["ATS Result"] = df_eval.apply(
@@ -114,7 +118,6 @@ df_eval["Total Result"] = df_eval.apply(
 )
 
 df_eval = df_eval[(df_eval["ATS Result"] != "Push") & (df_eval["Total Result"] != "Push")]
-
 df_eval["ATS Outcome"] = df_eval.apply(lambda r: "Win" if r["Model ATS Pick"] == r["ATS Result"] else "Loss", axis=1)
 df_eval["Total Outcome"] = df_eval.apply(lambda r: "Win" if r["Model Total Pick"] == r["Total Result"] else "Loss", axis=1)
 
@@ -133,7 +136,7 @@ with pd.ExcelWriter("fireball_accuracy_report.xlsx") as writer:
 
 print("✅ Fireball accuracy report saved to fireball_accuracy_report.xlsx")
 
-# === Push to GitHub ===
+# === Git push block ===
 try:
     subprocess.run(["git", "add", "."], check=True)
     subprocess.run(["git", "commit", "-m", f"Auto-push with fireball accuracy report [{now}]"], check=True)
