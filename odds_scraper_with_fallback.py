@@ -5,7 +5,7 @@ import time
 import os
 import argparse
 
-API_KEY = "your_api_key_here"
+API_KEY = "591b5b68a9802e9b588155794300ed47"
 SPORT_KEY = "baseball_mlb"
 MARKETS = "h2h,spreads,totals"
 REGION = "us"
