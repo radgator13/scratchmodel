@@ -2,6 +2,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import time
 
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 
@@ -78,7 +79,7 @@ def load_data():
     return df
 
 df = load_data()
-regenerate_fireball_accuracy()
+
 
 # === Confirm report exists visually
 if os.path.exists("fireball_accuracy_report.xlsx"):
@@ -179,7 +180,8 @@ if not filtered.empty:
     with col2:
         st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(summary_df)
-
+regenerate_fireball_accuracy()
+time.sleep(1)  # give file system time to register .xlsx
 # === Fireball accuracy viewer
 def render_fireball_accuracy_section():
     try:
