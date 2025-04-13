@@ -161,7 +161,7 @@ if not filtered.empty:
         st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
         summarize(filtered_summary)
     with col2:
-        st.subheader("📈 Overall Model Performance (Since April 10)")
+        st.subheader("📈 Overall Model Performance (Since April 9)")
         summarize(overall_summary)
 
     st.subheader("🔥 Fireball Accuracy Reporting")
