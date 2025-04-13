@@ -1,13 +1,11 @@
-﻿# odds_scraper_with_fallback.py
-
-import requests
+﻿import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import time
 import os
 import argparse
 
-API_KEY = "591b5b68a9802e9b588155794300ed47"
+API_KEY = "your_api_key_here"
 SPORT_KEY = "baseball_mlb"
 MARKETS = "h2h,spreads,totals"
 REGION = "us"
@@ -92,29 +90,29 @@ def fetch_odds_for_day(date_obj):
         print(f"❌ Error on {date_obj.strftime('%Y-%m-%d')}: {e}")
         return []
 
-def get_existing_dates():
-    if not os.path.exists(OUTPUT_CSV):
-        return set()
-    df = pd.read_csv(OUTPUT_CSV)
-    return set(df["Game Date"].unique())
-
 def scrape_range(start_date, end_date, update_existing=False):
+    columns = [
+        "Game Date", "Home Team", "Away Team", "Bookmaker Used",
+        "ML Home", "ML Away",
+        "Spread Home", "Spread Home Odds", "Spread Away", "Spread Away Odds",
+        "Total", "Over Odds", "Under Odds"
+    ]
+
     if os.path.exists(OUTPUT_CSV):
         existing_df = pd.read_csv(OUTPUT_CSV)
     else:
-        existing_df = pd.DataFrame()
+        print("🆕 No odds file found. Creating new base file.")
+        existing_df = pd.DataFrame(columns=columns)
+        existing_df.to_csv(OUTPUT_CSV, index=False)
 
     all_rows = []
     current = start_date
 
     while current <= end_date:
         date_str = current.strftime("%Y-%m-%d")
-        needs_update = True
-        if not update_existing and date_str in existing_df["Game Date"].unique():
+        if not update_existing and date_str in existing_df["Game Date"].astype(str).unique():
             print(f"⏭ Skipping {date_str} (already exists)")
-            needs_update = False
-
-        if needs_update:
+        else:
             new_rows = fetch_odds_for_day(current)
             all_rows.extend(new_rows)
             time.sleep(1.25)
@@ -123,6 +121,7 @@ def scrape_range(start_date, end_date, update_existing=False):
 
     if all_rows:
         new_df = pd.DataFrame(all_rows)
+
         if not existing_df.empty:
             combined = pd.concat([existing_df, new_df], ignore_index=True)
             combined.drop_duplicates(subset=["Game Date", "Home Team", "Away Team"], keep="last", inplace=True)
@@ -132,7 +131,7 @@ def scrape_range(start_date, end_date, update_existing=False):
         combined.to_csv(OUTPUT_CSV, index=False)
         print(f"\n✅ Updated odds saved to {OUTPUT_CSV} ({len(combined)} total rows)")
     else:
-        print("✅ No new data to append.")
+        print("✅ No new odds scraped, but file is ready.")
 
 def merge_with_model_results():
     model_file = "mlb_boxscores_cleaned.csv"
@@ -149,7 +148,7 @@ def merge_with_model_results():
     odds = pd.read_csv(odds_file)
 
     for df in [model, odds]:
-        df["Game Date"] = pd.to_datetime(df["Game Date"]).dt.strftime("%Y-%m-%d")
+        df["Game Date"] = pd.to_datetime(df["Game Date"], errors='coerce').dt.strftime("%Y-%m-%d")
         df["Home Team"] = df["Home Team"].str.strip().str.title()
         df["Away Team"] = df["Away Team"].str.strip().str.title()
 
@@ -165,4 +164,3 @@ if __name__ == "__main__":
     print("🚀 Starting odds scrape with fallback + model merge")
     scrape_range(START_DATE, END_DATE, update_existing=args.update_existing)
     merge_with_model_results()
-    
