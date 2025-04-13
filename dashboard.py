@@ -2,7 +2,6 @@
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import time
 
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 
@@ -47,7 +46,6 @@ def regenerate_fireball_accuracy():
                 total_stats.to_excel(writer, sheet_name="Total Accuracy")
 
             print("✅ Regenerated fireball_accuracy_report.xlsx")
-            print("📂 Found:", os.path.exists("fireball_accuracy_report.xlsx"))
         except Exception as e:
             print(f"⚠️ Failed to regenerate fireball report: {e}")
 
@@ -79,15 +77,9 @@ def load_data():
     return df
 
 df = load_data()
+regenerate_fireball_accuracy()
 
-
-# === Confirm report exists visually
-if os.path.exists("fireball_accuracy_report.xlsx"):
-    st.success("✅ Fireball accuracy report is ready.")
-else:
-    st.error("❌ Fireball accuracy report not found.")
-
-# === Last updated timestamp
+# === Timestamp
 if os.path.exists("mlb_model_predictions.csv"):
     modified_time = os.path.getmtime("mlb_model_predictions.csv")
     st.caption(f"📅 **Predictions last updated:** {datetime.fromtimestamp(modified_time).strftime('%b %d, %Y at %I:%M %p')}")
@@ -180,28 +172,31 @@ if not filtered.empty:
     with col2:
         st.subheader("📈 Overall Model Performance (Since April 10)")
         summarize(summary_df)
-regenerate_fireball_accuracy()
-time.sleep(1)  # give file system time to register .xlsx
-# === Fireball accuracy viewer
-def render_fireball_accuracy_section():
-    try:
-        xls = pd.ExcelFile("fireball_accuracy_report.xlsx")
-        ats_stats = pd.read_excel(xls, sheet_name="ATS Accuracy", index_col=0)
-        total_stats = pd.read_excel(xls, sheet_name="Total Accuracy", index_col=0)
 
-        with st.expander("🔥 Fireball Accuracy Summary"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**ATS Accuracy by Fireball 🔥**")
-                for label, row in ats_stats.iterrows():
-                    acc = row.get("Accuracy", 0)
-                    st.markdown(f"- `{label}` → **{acc:.1f}%**")
-            with col2:
-                st.markdown("**Total Accuracy by Fireball 🔥**")
-                for label, row in total_stats.iterrows():
-                    acc = row.get("Accuracy", 0)
-                    st.markdown(f"- `{label}` → **{acc:.1f}%**")
-    except Exception as e:
+# === Fireball Accuracy Section
+def render_fireball_accuracy_section():
+    if os.path.exists("fireball_accuracy_report.xlsx"):
+        st.success("✅ Fireball accuracy report is ready.")
+        try:
+            xls = pd.ExcelFile("fireball_accuracy_report.xlsx")
+            ats_stats = pd.read_excel(xls, sheet_name="ATS Accuracy", index_col=0)
+            total_stats = pd.read_excel(xls, sheet_name="Total Accuracy", index_col=0)
+
+            with st.expander("🔥 Fireball Accuracy Summary"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**ATS Accuracy by Fireball 🔥**")
+                    for label, row in ats_stats.iterrows():
+                        acc = row.get("Accuracy", 0)
+                        st.markdown(f"- `{label}` → **{acc:.1f}%**")
+                with col2:
+                    st.markdown("**Total Accuracy by Fireball 🔥**")
+                    for label, row in total_stats.iterrows():
+                        acc = row.get("Accuracy", 0)
+                        st.markdown(f"- `{label}` → **{acc:.1f}%**")
+        except Exception as e:
+            st.warning(f"⚠️ Failed to read fireball report: {e}")
+    else:
         st.warning("⚠️ Fireball accuracy report not found or unreadable.")
 
 render_fireball_accuracy_section()
