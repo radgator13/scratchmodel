@@ -96,7 +96,11 @@ def render_fireball_accuracy_summary(df_eval, label=""):
                 st.markdown(f"- `{label}` → **{row['Accuracy']:.1f}%**")
             st.bar_chart(ats_stats["Accuracy"])
             st.caption("🔢 Pick counts:")
-            st.dataframe(ats_stats[["Win", "Loss", "Total"]])
+            if all(col in ats_stats.columns for col in ["Win", "Loss", "Total"]):
+                st.dataframe(ats_stats[["Win", "Loss", "Total"]])
+            else:
+                st.info("No ATS picks available to show counts for this date.")
+
 
         with col2:
             st.markdown("**Total Accuracy by Fireball 🔥**")
@@ -104,7 +108,11 @@ def render_fireball_accuracy_summary(df_eval, label=""):
                 st.markdown(f"- `{label}` → **{row['Accuracy']:.1f}%**")
             st.bar_chart(total_stats["Accuracy"])
             st.caption("🔢 Pick counts:")
-            st.dataframe(total_stats[["Win", "Loss", "Total"]])
+            if all(col in total_stats.columns for col in ["Win", "Loss", "Total"]):
+                st.dataframe(total_stats[["Win", "Loss", "Total"]])
+            else:
+                st.info("No Total picks available to show counts for this date.")
+
 
 # === Load and preprocess
 df = load_data()
