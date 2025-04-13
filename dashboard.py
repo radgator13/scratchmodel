@@ -154,7 +154,7 @@ st.dataframe(filtered[display_cols].sort_values(["Game Date", "Home"]), use_cont
 if not filtered.empty:
     df_results = evaluate_results(df)
     filtered_summary = df_results[df_results["Game Date Normalized"] == selected_date]
-    overall_summary = df_results[df_results["Game Date"] >= pd.to_datetime("2025-04-10")]
+    overall_summary = df_results[df_results["Game Date"] >= pd.to_datetime("2025-04-09")]
 
     col1, col2 = st.columns(2)
     with col1:
