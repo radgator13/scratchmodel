@@ -198,4 +198,4 @@ if not filtered.empty:
     if scope == "Selected Date":
         render_fireball_accuracy_summary(filtered_summary, label=selected_date.strftime("%b %d"))
     else:
-        render_fireball_accuracy_summary(overall_summary, label="Since Apr 10")
+        render_fireball_accuracy_summary(overall_summary, label="Since Apr 9")
