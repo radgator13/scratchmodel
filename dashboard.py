@@ -2,6 +2,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import pytz
 
 st.set_page_config(page_title="MLB Model vs Vegas", layout="wide")
 
@@ -179,7 +180,8 @@ st.dataframe(
 )
 
 # === Timestamp for Top Picks Table
-top_timestamp = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+local_tz = pytz.timezone("US/Eastern")  # your actual timezone
+top_timestamp = datetime.now(pytz.utc).astimezone(local_tz).strftime("%B %d, %Y at %I:%M %p")
 st.caption(f"🕒 Top picks generated on {top_timestamp}")
 
 # === Summary + Fireball Reporting
@@ -205,7 +207,8 @@ if not filtered.empty:
         render_fireball_accuracy_summary(overall_summary, label="Since Apr 9")
 
 # === Model Explanation Footer
-footer_time = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+local_tz = pytz.timezone("US/Eastern")  # your actual timezone
+footer_time = datetime.now(pytz.utc).astimezone(local_tz).strftime("%B %d, %Y at %I:%M %p")
 st.markdown("---")
 st.subheader("🧠 Why These Picks?")
 st.markdown("""
