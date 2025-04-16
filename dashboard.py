@@ -188,14 +188,14 @@ st.caption(f"🕒 Top picks generated on {top_timestamp}")
 if not filtered.empty:
     df_results = evaluate_results(df)
     filtered_summary = df_results[df_results["Game Date Normalized"] == selected_date]
-    overall_summary = df_results[df_results["Game Date"] >= pd.to_datetime("2025-04-09")]
+    overall_summary = df_results[df_results["Game Date"] >= pd.to_datetime("2025-04-11")]
 
     col1, col2 = st.columns(2)
     with col1:
         st.subheader(f"📊 Summary for {selected_date.strftime('%B %d, %Y')}")
         summarize(filtered_summary)
     with col2:
-        st.subheader("📈 Overall Model Performance (Since April 9)")
+        st.subheader("📈 Overall Model Performance (Since April 11)")
         summarize(overall_summary)
 
     st.subheader("🔥 Fireball Accuracy Reporting")
@@ -204,7 +204,7 @@ if not filtered.empty:
     if scope == "Selected Date":
         render_fireball_accuracy_summary(filtered_summary, label=selected_date.strftime("%b %d"))
     else:
-        render_fireball_accuracy_summary(overall_summary, label="Since Apr 9")
+        render_fireball_accuracy_summary(overall_summary, label="Since Apr 11")
 
 # === Model Explanation Footer
 local_tz = pytz.timezone("US/Eastern")  # your actual timezone
